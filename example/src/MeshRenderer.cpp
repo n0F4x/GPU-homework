@@ -11,6 +11,49 @@ using namespace core;
 
 constexpr static uint32_t g_frame_count{ 1 };
 
+[[nodiscard]]
+static auto
+    load_terrain(const renderer::Device& t_device, const renderer::Allocator& t_allocator)
+        -> Terrain
+{
+    auto                                transfer_command_pool{ init::create_command_pool(
+        t_device.get(), t_device.info().get_queue_index(vkb::QueueType::graphics).value()
+    ) };
+    const vk::CommandBufferAllocateInfo command_buffer_allocate_info{
+        .commandPool        = transfer_command_pool.get(),
+        .level              = vk::CommandBufferLevel::ePrimary,
+        .commandBufferCount = 1
+    };
+    auto command_buffer{
+        t_device->allocateCommandBuffers(command_buffer_allocate_info).front()
+    };
+
+    auto packaged_terrain{ Terrain::create_loader(t_device.get(), t_allocator) };
+
+    constexpr vk::CommandBufferBeginInfo begin_info{};
+    command_buffer.begin(begin_info);
+    std::invoke(packaged_terrain, command_buffer);
+    command_buffer.end();
+
+    const vk::SubmitInfo submit_info{
+        .commandBufferCount = 1,
+        .pCommandBuffers    = &command_buffer,
+    };
+    vk::UniqueFence fence{ t_device->createFenceUnique({}) };
+
+    static_cast<void>(static_cast<vk::Queue>(
+                          t_device.info().get_queue(vkb::QueueType::graphics).value()
+    )
+                          .submit(1, &submit_info, fence.get()));
+
+    static_cast<void>(
+        t_device->waitForFences(std::array{ fence.get() }, vk::True, 100'000'000'000)
+    );
+    t_device->resetCommandPool(transfer_command_pool.get());
+
+    return packaged_terrain.get_future().get();
+}
+
 auto MeshRenderer::create_dependency_provider()
     -> std::shared_ptr<plugins::Renderer::DependencyProvider>
 {
@@ -93,6 +136,8 @@ auto MeshRenderer::create(Store& t_store) -> std::optional<MeshRenderer>
         return std::nullopt;
     }
 
+    auto terrain{ load_terrain(device, allocator) };
+
     return MeshRenderer{
         .device                     = device,
         .allocator                  = allocator,
@@ -106,6 +151,7 @@ auto MeshRenderer::create(Store& t_store) -> std::optional<MeshRenderer>
         .image_acquired_semaphores  = std::move(image_acquired_semaphores),
         .render_finished_semaphores = std::move(render_finished_semaphores),
         .in_flight_fences           = std::move(in_flight_fences),
+        .terrain                    = std::move(terrain)
     };
 }
 
@@ -123,7 +169,9 @@ auto MeshRenderer::render(
     {}
 
     if (auto&& [image_index, raw_swapchain]{ std::make_tuple(
-            swapchain.get().acquire_next_image(image_acquired_semaphores[frame_index].get(), {}),
+            swapchain.get().acquire_next_image(
+                image_acquired_semaphores[frame_index].get(), {}
+            ),
             std::cref(swapchain.get())
         ) };
         image_index.has_value() && raw_swapchain.get().has_value())

@@ -54,9 +54,9 @@ private:
     std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> m_data;
     int                                                  m_width;
     int                                                  m_height;
-    int                                                  m_channel_count;
+    Channels                                             m_channels;
 
-    explicit StbImage(stbi_uc* data, int width, int height, int channel_count) noexcept;
+    explicit StbImage(stbi_uc* data, int width, int height, Channels channels) noexcept;
 };
 
 }   // namespace core::asset

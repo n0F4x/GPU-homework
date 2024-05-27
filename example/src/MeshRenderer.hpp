@@ -7,6 +7,8 @@
 #include <core/renderer/scene/Scene.hpp>
 #include <plugins/Renderer.hpp>
 
+#include "Terrain.hpp"
+
 struct MeshRenderer {
     std::reference_wrapper<core::renderer::Device>    device;
     std::reference_wrapper<core::renderer::Allocator> allocator;
@@ -21,6 +23,9 @@ struct MeshRenderer {
     std::vector<vk::UniqueSemaphore>                  render_finished_semaphores;
     std::vector<vk::UniqueFence>                      in_flight_fences;
     uint32_t                                          frame_index{};
+
+    Terrain terrain;
+
 
     [[nodiscard]]
     static auto create_dependency_provider()

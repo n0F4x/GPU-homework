@@ -38,7 +38,7 @@ auto StbImage::load_from_file(
         return std::nullopt;
     }
 
-    return StbImage{ data, width, height, STBI_rgb_alpha };
+    return StbImage{ data, width, height, t_desired_channels };
 }
 
 auto StbImage::load_from_memory(std::span<const std::uint8_t> t_data
@@ -64,7 +64,7 @@ auto StbImage::load_from_memory(std::span<const std::uint8_t> t_data
         return std::nullopt;
     }
 
-    return StbImage{ data, width, height, STBI_rgb_alpha };
+    return StbImage{ data, width, height, Channels::eRGBA };
 }
 
 auto StbImage::data() const noexcept -> void*
@@ -75,7 +75,7 @@ auto StbImage::data() const noexcept -> void*
 auto StbImage::size() const noexcept -> size_t
 {
     return static_cast<size_t>(m_width) * static_cast<size_t>(m_height)
-         * static_cast<size_t>(m_channel_count);
+         * static_cast<size_t>(m_channels);
 }
 
 auto StbImage::width() const noexcept -> uint32_t
@@ -100,20 +100,26 @@ auto StbImage::mip_levels() const noexcept -> uint32_t
 
 auto StbImage::format() const noexcept -> vk::Format
 {
-    switch (m_channel_count) {
-        case 1: return vk::Format::eR8Srgb;
-        case 2: return vk::Format::eR8G8Srgb;
-        case 3: return vk::Format::eR8G8B8Srgb;
-        case 4: return vk::Format::eR8G8B8A8Srgb;
+    using enum Channels;
+    switch (m_channels) {
+        case eGray: return vk::Format::eR8Srgb;
+        case eGrayAlpha: return vk::Format::eR8G8Srgb;
+        case eRGB: return vk::Format::eR8G8B8Srgb;
+        case eRGBA: return vk::Format::eR8G8B8A8Srgb;
         default: std::unreachable();
     }
 }
 
-StbImage::StbImage(stbi_uc* t_data, int t_width, int t_height, int t_channel_count) noexcept
+StbImage::StbImage(
+    stbi_uc*       t_data,
+    const int      t_width,
+    const int      t_height,
+    const Channels t_channels
+) noexcept
     : m_data{ t_data, stbi_image_free },
       m_width{ t_width },
       m_height{ t_height },
-      m_channel_count{ t_channel_count }
+      m_channels{ t_channels }
 {}
 
 }   // namespace core::asset
