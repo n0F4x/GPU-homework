@@ -1,16 +1,15 @@
-#include "DemoRenderer.hpp"
-
 #include <spdlog/spdlog.h>
 
 #include <core/window/Window.hpp>
 
 #include "demo_init.hpp"
+#include "MeshRenderer.hpp"
 
 using namespace core;
 
 constexpr static uint32_t g_frame_count{ 1 };
 
-auto DemoRenderer::create(Store& t_store) -> std::optional<DemoRenderer>
+auto MeshRenderer::create(Store& t_store) -> std::optional<MeshRenderer>
 {
     auto&       cache{ t_store.at<cache::Cache>() };
     const auto& window{ t_store.at<window::Window>() };
@@ -87,7 +86,7 @@ auto DemoRenderer::create(Store& t_store) -> std::optional<DemoRenderer>
         return std::nullopt;
     }
 
-    return DemoRenderer{
+    return MeshRenderer{
         .device                     = device,
         .allocator                  = allocator,
         .swapchain                  = swapchain,
@@ -103,7 +102,7 @@ auto DemoRenderer::create(Store& t_store) -> std::optional<DemoRenderer>
     };
 }
 
-auto DemoRenderer::render(
+auto MeshRenderer::render(
     const vk::Extent2D            t_framebuffer_size,
     const core::graphics::Camera& t_camera
 ) -> void
@@ -150,7 +149,7 @@ auto DemoRenderer::render(
     frame_index = (frame_index + 1) % g_frame_count;
 }
 
-auto DemoRenderer::record_command_buffer(
+auto MeshRenderer::record_command_buffer(
     const renderer::vulkan::Swapchain& t_swapchain,
     const uint32_t                     t_image_index,
     core::graphics::Camera             t_camera

@@ -2,7 +2,7 @@ add_executable(test
         src/main.cpp
         src/Controller.cpp
         src/demo.cpp
-        src/DemoRenderer.cpp
+        src/MeshRenderer.cpp
         src/demo_init.cpp
 )
 target_compile_features(test PRIVATE cxx_std_23)

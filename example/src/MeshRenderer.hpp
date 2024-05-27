@@ -6,7 +6,7 @@
 #include <core/renderer/memory/Image.hpp>
 #include <core/renderer/scene/Scene.hpp>
 
-struct DemoRenderer {
+struct MeshRenderer {
     core::renderer::Device&            device;
     core::renderer::Allocator&         allocator;
     core::renderer::Swapchain&         swapchain;
@@ -22,7 +22,7 @@ struct DemoRenderer {
     uint32_t                           frame_index{};
 
     [[nodiscard]]
-    static auto create(Store& t_store) -> std::optional<DemoRenderer>;
+    static auto create(Store& t_store) -> std::optional<MeshRenderer>;
 
     auto render(vk::Extent2D t_framebuffer_size, const core::graphics::Camera& t_camera)
         -> void;

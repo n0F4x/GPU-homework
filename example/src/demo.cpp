@@ -12,15 +12,15 @@
 
 #include "Controller.hpp"
 #include "demo_init.hpp"
-#include "DemoRenderer.hpp"
+#include "MeshRenderer.hpp"
 
 using namespace entt::literals;
 using namespace core;
 
 auto demo::run(app::App& t_app) noexcept -> int
 {
-    return DemoRenderer::create(t_app.store())
-        .transform([&](DemoRenderer t_demo) {
+    return MeshRenderer::create(t_app.store())
+        .transform([&](MeshRenderer t_demo) {
             t_demo.swapchain.on_swapchain_recreated(
                 [&t_demo](const renderer::vulkan::Swapchain& t_swapchain) {
                     t_demo.depth_image.reset();
