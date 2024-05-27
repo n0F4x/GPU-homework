@@ -2,8 +2,6 @@
 
 #include <spdlog/spdlog.h>
 
-#include <core/graphics/model/GltfLoader.hpp>
-#include <core/renderer/scene/Builder.hpp>
 #include <core/window/Window.hpp>
 
 #include "demo_init.hpp"
@@ -12,91 +10,7 @@ using namespace core;
 
 constexpr static uint32_t g_frame_count{ 1 };
 
-[[nodiscard]]
-static auto load_scene(
-    const renderer::Device&      t_device,
-    const renderer::Allocator&   t_allocator,
-    vk::RenderPass               t_render_pass,
-    graphics::Model&&            t_model,
-    const std::filesystem::path& t_fragment_shader_filepath,
-    cache::Cache&                t_cache
-) -> std::optional<renderer::Scene>
-{
-    auto opt_vertex_shader_module{
-        renderer::ShaderModule::create(t_device.get(), "shaders/model.vert.spv")
-    };
-    if (!opt_vertex_shader_module.has_value()) {
-        SPDLOG_ERROR("Vertex shader could not be created");
-        return std::nullopt;
-    }
-    auto opt_fragment_shader_module{
-        renderer::ShaderModule::create(t_device.get(), t_fragment_shader_filepath)
-    };
-    if (!opt_fragment_shader_module.has_value()) {
-        SPDLOG_ERROR("Fragment shader could not be created");
-        return std::nullopt;
-    }
-
-
-    auto                                transfer_command_pool{ init::create_command_pool(
-        t_device.get(), t_device.info().get_queue_index(vkb::QueueType::graphics).value()
-    ) };
-    const vk::CommandBufferAllocateInfo command_buffer_allocate_info{
-        .commandPool        = transfer_command_pool.get(),
-        .level              = vk::CommandBufferLevel::ePrimary,
-        .commandBufferCount = 1
-    };
-    auto command_buffer{
-        t_device->allocateCommandBuffers(command_buffer_allocate_info).front()
-    };
-
-    auto packaged_scene{
-        renderer::Scene::create()
-            .add_model(
-                cache::make_handle<graphics::Model>(std::move(t_model)),
-                renderer::Effect{
-                                 renderer::Shader{ cache::make_handle<renderer::ShaderModule>(
-                                          std::move(opt_vertex_shader_module.value())
-                                      ),
-                                      "main" },
-                                 renderer::Shader{ cache::make_handle<renderer::ShaderModule>(
-                                          std::move(opt_fragment_shader_module.value())
-                                      ),
-                                      "main" } }
-            )
-            .set_cache(t_cache)
-            .build(t_device.get(), t_allocator, t_render_pass)
-    };
-
-    constexpr vk::CommandBufferBeginInfo begin_info{};
-    command_buffer.begin(begin_info);
-    std::invoke(packaged_scene, command_buffer);
-    command_buffer.end();
-
-    const vk::SubmitInfo submit_info{
-        .commandBufferCount = 1,
-        .pCommandBuffers    = &command_buffer,
-    };
-    vk::UniqueFence fence{ t_device->createFenceUnique({}) };
-
-    static_cast<void>(static_cast<vk::Queue>(
-                          t_device.info().get_queue(vkb::QueueType::graphics).value()
-    )
-                          .submit(1, &submit_info, fence.get()));
-
-    static_cast<void>(
-        t_device->waitForFences(std::array{ fence.get() }, vk::True, 100'000'000'000)
-    );
-    t_device->resetCommandPool(transfer_command_pool.get());
-
-    return packaged_scene.get_future().get();
-}
-
-auto DemoRenderer::create(
-    Store&                       t_store,
-    const std::filesystem::path& t_model_filepath,
-    const std::filesystem::path& t_fragment_shader_filepath
-) -> std::optional<DemoRenderer>
+auto DemoRenderer::create(Store& t_store) -> std::optional<DemoRenderer>
 {
     auto&       cache{ t_store.at<cache::Cache>() };
     const auto& window{ t_store.at<window::Window>() };
@@ -173,23 +87,6 @@ auto DemoRenderer::create(
         return std::nullopt;
     }
 
-    auto opt_model{ core::graphics::GltfLoader::load_from_file(t_model_filepath) };
-    if (!opt_model.has_value()) {
-        return std::nullopt;
-    }
-
-    auto opt_scene{ load_scene(
-        device,
-        allocator,
-        render_pass.get(),
-        std::move(opt_model.value()),
-        t_fragment_shader_filepath,
-        cache
-    ) };
-    if (!opt_scene.has_value()) {
-        return std::nullopt;
-    }
-
     return DemoRenderer{
         .device                     = device,
         .allocator                  = allocator,
@@ -203,7 +100,6 @@ auto DemoRenderer::create(
         .image_acquired_semaphores  = std::move(image_acquired_semaphores),
         .render_finished_semaphores = std::move(render_finished_semaphores),
         .in_flight_fences           = std::move(in_flight_fences),
-        .scene                      = std::move(opt_scene.value()),
     };
 }
 
@@ -299,8 +195,6 @@ auto DemoRenderer::record_command_buffer(
         0.1f,
         10000.f
     );
-
-    scene.draw(command_buffer, t_camera);
 
 
     command_buffer.endRenderPass();

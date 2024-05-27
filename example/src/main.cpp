@@ -8,18 +8,6 @@
 
 auto main() -> int
 try {
-    const demo::ModelInfo model_info{
-        //        "models/BoxVertexColors/glTF-Binary/BoxVertexColors.glb",
-        //        "models/Avocado/glTF-Binary/Avocado.glb",
-        //        "models/armor/armor.gltf",s
-        "models/DamagedHelmet.glb",
-        //        "models/Sponza/glTF/Sponza.gltf",
-        //        "models/SponzaKTX/Sponza01.gltf",
-        //        "models/SponzaKTX/Sponza02.gltf",
-        5,
-        "shaders/pbr.frag.spv"
-    };
-
     // for better debugging with Vulkan Configurator
     const auto renderer_options{
         plugins::Renderer::Options{}.require_vulkan_version(1, 1)
@@ -32,7 +20,7 @@ try {
             1'280, 720, "My window", plugins::Window::default_configure
         )
         .add_plugin<plugins::Renderer>(renderer_options)
-        .build_and_run(demo::run, model_info);
+        .build_and_run(demo::run);
 } catch (std::exception& error) {
     try {
         std::println("{}", error.what());

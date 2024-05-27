@@ -17,11 +17,9 @@
 using namespace entt::literals;
 using namespace core;
 
-auto demo::run(app::App& t_app, const ModelInfo& t_model_info) noexcept -> int
+auto demo::run(app::App& t_app) noexcept -> int
 {
-    return DemoRenderer::create(
-               t_app.store(), t_model_info.filepath, t_model_info.fragment_shader
-    )
+    return DemoRenderer::create(t_app.store())
         .transform([&](DemoRenderer t_demo) {
             t_demo.swapchain.on_swapchain_recreated(
                 [&t_demo](const renderer::vulkan::Swapchain& t_swapchain) {
@@ -66,7 +64,7 @@ auto demo::run(app::App& t_app, const ModelInfo& t_model_info) noexcept -> int
                 static_cast<double>(window_width) / 2.0,
                 static_cast<double>(window_height) / 2.0
             );
-            Controller controller{ t_model_info.movement_speed };
+            Controller controller{ 5.f };
             bool       reset_mouse{};
 
             std::atomic<vk::Extent2D> framebuffer_size{};
@@ -102,7 +100,7 @@ auto demo::run(app::App& t_app, const ModelInfo& t_model_info) noexcept -> int
 
                 glfwPollEvents();
 
-                if (glfwWindowShouldClose(window.get())) {
+                if (glfwWindowShouldClose(window.get()) == GLFW_TRUE) {
                     running = false;
                 }
 
