@@ -17,6 +17,8 @@ public:
     using FramebufferSizeGetterCreator =
         std::function<core::renderer::Swapchain::FramebufferSizeGetter(Store&)>;
 
+    class DependencyProvider;
+
     class Options;
 
     ///--------------------///

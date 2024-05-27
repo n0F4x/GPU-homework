@@ -120,7 +120,13 @@ auto Renderer::operator()(app::App::Builder& t_builder, const Options& t_options
 
     if (!default_required_instance_settings_are_available(system_info)
         || !Allocator::Requirements::required_instance_settings_are_available(system_info)
-        || !Swapchain::Requirements::required_instance_settings_are_available(system_info))
+        || !Swapchain::Requirements::required_instance_settings_are_available(system_info)
+        || !std::ranges::all_of(
+            t_options.dependency_providers(),
+            [&system_info](const std::shared_ptr<DependencyProvider>& provider) {
+                return provider->required_instance_settings_are_available(system_info);
+            }
+        ))
     {
         return;
     }
@@ -130,6 +136,12 @@ auto Renderer::operator()(app::App::Builder& t_builder, const Options& t_options
     enable_default_instance_settings(system_info, builder);
     Allocator::Requirements::enable_instance_settings(system_info, builder);
     Swapchain::Requirements::enable_instance_settings(system_info, builder);
+    std::ranges::for_each(
+        t_options.dependency_providers(),
+        [&system_info, &builder](const std::shared_ptr<DependencyProvider>& provider) {
+            provider->enable_instance_settings(system_info, builder);
+        }
+    );
 
     const auto instance_result{ builder.build() };
     if (!instance_result.has_value()) {
@@ -158,6 +170,12 @@ auto Renderer::operator()(app::App::Builder& t_builder, const Options& t_options
     Allocator::Requirements::require_device_settings(physical_device_selector);
     Swapchain::Requirements::require_device_settings(physical_device_selector);
     RenderModel::Requirements::require_device_settings(physical_device_selector);
+    std::ranges::for_each(
+        t_options.dependency_providers(),
+        [&physical_device_selector](const std::shared_ptr<DependencyProvider>& provider) {
+            provider->require_device_settings(physical_device_selector);
+        }
+    );
 
     auto physical_device_result{ physical_device_selector.select() };
     if (!physical_device_result.has_value()) {
@@ -169,6 +187,12 @@ auto Renderer::operator()(app::App::Builder& t_builder, const Options& t_options
     ));
     Swapchain::Requirements::enable_optional_device_settings(physical_device_result.value(
     ));
+    std::ranges::for_each(
+        t_options.dependency_providers(),
+        [&physical_device_result](const std::shared_ptr<DependencyProvider>& provider) {
+            provider->enable_optional_device_settings(physical_device_result.value());
+        }
+    );
 
     const vkb::DeviceBuilder device_builder{ physical_device_result.value() };
     const auto               device_result{ device_builder.build() };

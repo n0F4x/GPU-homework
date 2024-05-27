@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(engine C CXX)
+project(GPU-homework C CXX)
 
 
 add_library(${PROJECT_NAME})

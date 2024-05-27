@@ -27,23 +27,34 @@ auto Renderer::Options::set_framebuffer_size_getter(
     return *this;
 }
 
-[[nodiscard]]
+auto Renderer::Options::request_dependencies(
+    const std::shared_ptr<DependencyProvider>& t_dependency_provider
+) -> Options&
+{
+    m_dependency_providers.push_back(std::move(t_dependency_provider));
+    return *this;
+}
+
 auto Renderer::Options::required_vulkan_version() const noexcept -> uint32_t
 {
     return m_required_vulkan_version;
 }
 
-[[nodiscard]]
 auto Renderer::Options::surface_creator() const noexcept -> const Renderer::SurfaceCreator&
 {
     return m_create_surface;
 }
 
-[[nodiscard]]
 auto Renderer::Options::framebuffer_size_getter() const noexcept
     -> const Renderer::FramebufferSizeGetterCreator&
 {
     return m_create_framebuffer_size_getter;
+}
+
+auto Renderer::Options::dependency_providers() const noexcept
+    -> const std::vector<std::shared_ptr<DependencyProvider>>&
+{
+    return m_dependency_providers;
 }
 
 }   // namespace plugins
