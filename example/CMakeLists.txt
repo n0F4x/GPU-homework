@@ -2,8 +2,9 @@ add_executable(test
         src/main.cpp
         src/Controller.cpp
         src/demo.cpp
-        src/MeshRenderer.cpp
         src/demo_init.cpp
+        src/DependencyProvider.cpp
+        src/MeshRenderer.cpp
 )
 target_compile_features(test PRIVATE cxx_std_23)
 target_compile_definitions(test PRIVATE

@@ -1,17 +1,24 @@
+#include "MeshRenderer.hpp"
+
 #include <spdlog/spdlog.h>
 
 #include <core/window/Window.hpp>
 
 #include "demo_init.hpp"
-#include "MeshRenderer.hpp"
+#include "DependencyProvider.hpp"
 
 using namespace core;
 
 constexpr static uint32_t g_frame_count{ 1 };
 
+auto MeshRenderer::create_dependency_provider()
+    -> std::shared_ptr<plugins::Renderer::DependencyProvider>
+{
+    return std::make_shared<DependencyProvider>();
+}
+
 auto MeshRenderer::create(Store& t_store) -> std::optional<MeshRenderer>
 {
-    auto&       cache{ t_store.at<cache::Cache>() };
     const auto& window{ t_store.at<window::Window>() };
     auto&       device{ t_store.at<renderer::Device>() };
     auto&       allocator{ t_store.at<renderer::Allocator>() };

@@ -5,6 +5,7 @@
 #include <core/renderer/base/swapchain/Swapchain.hpp>
 #include <core/renderer/memory/Image.hpp>
 #include <core/renderer/scene/Scene.hpp>
+#include <plugins/Renderer.hpp>
 
 struct MeshRenderer {
     core::renderer::Device&            device;
@@ -20,6 +21,10 @@ struct MeshRenderer {
     std::vector<vk::UniqueSemaphore>   render_finished_semaphores;
     std::vector<vk::UniqueFence>       in_flight_fences;
     uint32_t                           frame_index{};
+
+    [[nodiscard]]
+    static auto create_dependency_provider()
+        -> std::shared_ptr<plugins::Renderer::DependencyProvider>;
 
     [[nodiscard]]
     static auto create(Store& t_store) -> std::optional<MeshRenderer>;
