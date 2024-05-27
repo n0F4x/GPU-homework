@@ -114,24 +114,24 @@ auto MeshRenderer::render(
     const core::graphics::Camera& t_camera
 ) -> void
 {
-    swapchain.set_framebuffer_size(t_framebuffer_size);
+    swapchain.get().set_framebuffer_size(t_framebuffer_size);
 
-    while (device->waitForFences(
+    while (device.get()->waitForFences(
                { in_flight_fences[frame_index].get() }, vk::True, UINT64_MAX
            )
            == vk::Result::eTimeout)
     {}
 
     if (auto&& [image_index, raw_swapchain]{ std::make_tuple(
-            swapchain.acquire_next_image(image_acquired_semaphores[frame_index].get(), {}),
+            swapchain.get().acquire_next_image(image_acquired_semaphores[frame_index].get(), {}),
             std::cref(swapchain.get())
         ) };
-        image_index.has_value() && raw_swapchain.has_value())
+        image_index.has_value() && raw_swapchain.get().has_value())
     {
-        device->resetFences({ in_flight_fences[frame_index].get() });
+        device.get()->resetFences({ in_flight_fences[frame_index].get() });
         command_buffers[frame_index].reset();
 
-        record_command_buffer(raw_swapchain.value(), image_index.value(), t_camera);
+        record_command_buffer(raw_swapchain.get().value(), image_index.value(), t_camera);
 
         std::array wait_semaphores{ image_acquired_semaphores[frame_index].get() };
         std::array<vk::PipelineStageFlags, wait_semaphores.size()> wait_stages{
@@ -147,10 +147,10 @@ auto MeshRenderer::render(
             .signalSemaphoreCount = static_cast<uint32_t>(signal_semaphores.size()),
             .pSignalSemaphores    = signal_semaphores.data()
         };
-        vk::Queue(device.info().get_queue(vkb::QueueType::graphics).value())
+        vk::Queue(device.get().info().get_queue(vkb::QueueType::graphics).value())
             .submit(submit_info, in_flight_fences[frame_index].get());
 
-        swapchain.present(signal_semaphores);
+        swapchain.get().present(signal_semaphores);
     }
 
     frame_index = (frame_index + 1) % g_frame_count;

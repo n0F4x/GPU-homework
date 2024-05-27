@@ -21,28 +21,28 @@ auto demo::run(app::App& t_app) noexcept -> int
 {
     return MeshRenderer::create(t_app.store())
         .transform([&](MeshRenderer t_demo) {
-            t_demo.swapchain.on_swapchain_recreated(
+            t_demo.swapchain.get().on_swapchain_recreated(
                 [&t_demo](const renderer::vulkan::Swapchain& t_swapchain) {
                     t_demo.depth_image.reset();
                     t_demo.depth_image = init::create_depth_image(
-                        t_demo.device.physical_device(),
+                        t_demo.device.get().physical_device(),
                         t_demo.allocator,
                         t_swapchain.extent()
                     );
                 }
             );
-            t_demo.swapchain.on_swapchain_recreated(
+            t_demo.swapchain.get().on_swapchain_recreated(
                 [&t_demo](const renderer::vulkan::Swapchain&) {
                     t_demo.depth_image_view.reset();
                     t_demo.depth_image_view =
                         init::create_depth_image_view(t_demo.device, *t_demo.depth_image);
                 }
             );
-            t_demo.swapchain.on_swapchain_recreated(
+            t_demo.swapchain.get().on_swapchain_recreated(
                 [&t_demo](const renderer::vulkan::Swapchain& t_swapchain) {
                     t_demo.framebuffers.clear();
                     t_demo.framebuffers = init::create_framebuffers(
-                        *t_demo.device,
+                        *t_demo.device.get(),
                         t_swapchain.extent(),
                         t_swapchain.image_views(),
                         *t_demo.render_pass,
@@ -136,7 +136,7 @@ auto demo::run(app::App& t_app) noexcept -> int
             }
 
             rendering.get();
-            t_demo.device->waitIdle();
+            t_demo.device.get()->waitIdle();
 
             return 0;
         })
