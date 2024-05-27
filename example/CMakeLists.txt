@@ -5,6 +5,7 @@ add_executable(test
         src/demo_init.cpp
         src/DependencyProvider.cpp
         src/MeshRenderer.cpp
+        src/Terrain.cpp
 )
 target_compile_features(test PRIVATE cxx_std_23)
 target_compile_definitions(test PRIVATE

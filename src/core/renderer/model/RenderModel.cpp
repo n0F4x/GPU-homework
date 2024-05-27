@@ -727,7 +727,7 @@ static auto create_pipeline(
     );
 }
 
-void transition_image_layout(
+static void transition_image_layout(
     vk::CommandBuffer t_command_buffer,
     vk::Image         t_image,
     vk::ImageLayout   t_old_layout,
@@ -785,7 +785,7 @@ void transition_image_layout(
     );
 }
 
-void copy_buffer_to_image(
+static void copy_buffer_to_image(
     vk::CommandBuffer t_command_buffer,
     vk::Buffer        t_buffer,
     vk::Image         t_image,

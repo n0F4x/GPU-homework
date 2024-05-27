@@ -12,9 +12,21 @@ namespace core::asset {
 
 class StbImage final : public Image {
 public:
+    enum class Channels {
+        eGray      = 1,
+        eGrayAlpha = 2,
+        eRGB       = 3,
+        eRGBA      = 4
+    };
+
     [[nodiscard]]
     static auto load_from_file(const std::filesystem::path& t_filepath
     ) -> std::optional<StbImage>;
+
+    [[nodiscard]]
+    static auto
+        load_from_file(const std::filesystem::path& t_filepath, Channels desired_channels)
+            -> std::optional<StbImage>;
 
     [[nodiscard]]
     static auto load_from_memory(std::span<const std::uint8_t> t_data

@@ -5,18 +5,33 @@ namespace core::asset {
 auto StbImage::load_from_file(const std::filesystem::path& t_filepath
 ) -> std::optional<StbImage>
 {
+    int channels{};
+    if (stbi_info(t_filepath.generic_string().c_str(), nullptr, nullptr, &channels) != 1)
+    {
+        return std::nullopt;
+    }
+
+    return load_from_file(t_filepath, static_cast<Channels>(channels));
+}
+
+auto StbImage::load_from_file(
+    const std::filesystem::path& t_filepath,
+    Channels                     t_desired_channels
+) -> std::optional<StbImage>
+{
     if (stbi_info(t_filepath.generic_string().c_str(), nullptr, nullptr, nullptr) != 1) {
         return std::nullopt;
     }
 
     int      width{};
     int      height{};
-    stbi_uc* data{
-        // TODO: request format
-        stbi_load(
-            t_filepath.generic_string().c_str(), &width, &height, nullptr, STBI_rgb_alpha
-        )
-    };
+    stbi_uc* data{ stbi_load(
+        t_filepath.generic_string().c_str(),
+        &width,
+        &height,
+        nullptr,
+        std::to_underlying(t_desired_channels)
+    ) };
 
     if (data == nullptr) {
         SPDLOG_ERROR(stbi_failure_reason());
@@ -91,7 +106,7 @@ auto StbImage::format() const noexcept -> vk::Format
         case 3: return vk::Format::eR8G8B8Srgb;
         case 4: return vk::Format::eR8G8B8A8Srgb;
         default: std::unreachable();
-    };
+    }
 }
 
 StbImage::StbImage(stbi_uc* t_data, int t_width, int t_height, int t_channel_count) noexcept
