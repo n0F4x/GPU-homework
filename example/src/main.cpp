@@ -13,7 +13,7 @@ try {
         .add_plugin<plugins::Logger>(plugins::Logger::Level::eTrace)
         .add_plugin<plugins::Cache>()
         .add_plugin<plugins::Window>(
-            1'280, 720, "My window", plugins::Window::default_configure
+            1'280, 720, "Mesh shading", plugins::Window::default_configure
         )
         .add_plugin<plugins::Renderer>(plugins::Renderer::Options{}.request_dependencies(
             MeshRenderer::create_dependency_provider()

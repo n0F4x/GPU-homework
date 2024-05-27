@@ -23,7 +23,12 @@ if (DEFINED GLSLC)
     set(SHADERS_IN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
     set(SHADERS_OUT_DIR ${SHADERS_IN_DIR})
 
-    file(GLOB_RECURSE SHADERS "${SHADERS_IN_DIR}/*.vert" "${SHADERS_IN_DIR}/*.frag")
+    file(GLOB_RECURSE SHADERS
+            "${SHADERS_IN_DIR}/*.vert"
+            "${SHADERS_IN_DIR}/*.frag"
+            "${SHADERS_IN_DIR}/*.mesh"
+            "${SHADERS_IN_DIR}/*.task"
+    )
 
     file(MAKE_DIRECTORY ${SHADERS_OUT_DIR})
 
@@ -34,7 +39,7 @@ if (DEFINED GLSLC)
         add_custom_command(
                 MAIN_DEPENDENCY ${SHADER}
                 OUTPUT ${SHADER_OUT_NAME}
-                COMMAND ${GLSLC} ${SHADER} "-o" ${SHADER_OUT_NAME}
+                COMMAND ${GLSLC} ${SHADER} "-o" ${SHADER_OUT_NAME} "--target-spv=spv1.4"
                 VERBATIM)
     endforeach ()
 
