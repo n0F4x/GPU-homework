@@ -72,6 +72,18 @@ static auto create_gpu_only_buffer(
         .value_or(t_allocator.allocate_buffer(buffer_create_info));
 }
 
+template <typename UniformBlock>
+[[nodiscard]]
+static auto create_buffer(const core::renderer::Allocator& t_allocator
+) -> core::renderer::MappedBuffer
+{
+    constexpr vk::BufferCreateInfo buffer_create_info = {
+        .size = sizeof(UniformBlock), .usage = vk::BufferUsageFlagBits::eUniformBuffer
+    };
+
+    return t_allocator.allocate_mapped_buffer(buffer_create_info);
+}
+
 [[nodiscard]]
 static auto create_image(
     const core::renderer::Allocator& t_allocator,
@@ -230,7 +242,7 @@ auto Terrain::create_loader(
 ) -> std::packaged_task<Terrain(vk::CommandBuffer)>
 {
     std::vector<Vertex> vertices;
-    size_t              quad_count{ 50 };
+    size_t              quad_count{ 64 };
     vertices.reserve(quad_count * 4);
     for (size_t i{}; i < quad_count; i++) {
         for (size_t j{}; j < quad_count; j++) {
@@ -261,9 +273,15 @@ auto Terrain::create_loader(
     core::renderer::MappedBuffer vertex_staging_buffer{
         create_staging_buffer(t_allocator, std::span{ vertices })
     };
-    core::renderer::Buffer vertex_buffer{ create_gpu_only_buffer(
-        t_allocator, vk::BufferUsageFlagBits::eVertexBuffer, vertex_buffer_size
+    core::renderer::Buffer       vertex_buffer{ create_gpu_only_buffer(
+        t_allocator,
+        vk::BufferUsageFlagBits::eStorageBuffer
+            | vk::BufferUsageFlagBits::eShaderDeviceAddress,
+        vertex_buffer_size
     ) };
+    core::renderer::MappedBuffer vertex_uniform{
+        create_buffer<vk::DeviceAddress>(t_allocator)
+    };
 
 
     const auto image{ core::asset::StbImage::load_from_file(
@@ -294,9 +312,11 @@ auto Terrain::create_loader(
 
 
     return std::packaged_task<Terrain(vk::CommandBuffer)>{
-        [vertex_buffer_size       = vertex_buffer_size,
+        [device                   = t_device,
+         vertex_buffer_size       = vertex_buffer_size,
          vertex_staging_buffer    = auto{ std::move(vertex_staging_buffer) },
          vertex_buffer            = auto{ std::move(vertex_buffer) },
+         vertex_uniform           = auto{ std::move(vertex_uniform) },
          vertex_count             = static_cast<uint32_t>(vertices.size()),
          heightmap_extent         = vk::Extent3D{ .width  = image->width(),
                                                   .height = image->height(),
@@ -331,7 +351,9 @@ auto Terrain::create_loader(
                 vk::ImageLayout::eShaderReadOnlyOptimal
             );
 
-            return Terrain{ std::move(vertex_buffer),
+            return Terrain{ device,
+                            std::move(vertex_buffer),
+                            std::move(vertex_uniform),
                             vertex_count,
                             std::move(heightmap),
                             std::move(heightmap_view),
@@ -340,16 +362,41 @@ auto Terrain::create_loader(
     };
 }
 
+[[nodiscard]]
+auto Terrain::vertex_uniform() const noexcept -> const core::renderer::MappedBuffer&
+{
+    return m_vertex_uniform;
+}
+
+[[nodiscard]]
+auto Terrain::heightmap_image_view() const noexcept -> const vk::UniqueImageView&
+{
+    return m_heightmap_view;
+}
+
+[[nodiscard]]
+auto Terrain::heightmap_sampler() const noexcept -> const vk::UniqueSampler&
+{
+    return m_heightmap_sampler;
+}
+
 Terrain::Terrain(
-    core::renderer::Buffer&& t_vertex_buffer,
-    uint32_t                 t_vertex_count,
-    core::renderer::Image&&  t_heightmap,
-    vk::UniqueImageView&&    t_heightmap_view,
-    vk::UniqueSampler&&      t_heightmap_sampler
+    const vk::Device               t_device,
+    core::renderer::Buffer&&       t_vertex_buffer,
+    core::renderer::MappedBuffer&& t_vertex_uniform,
+    const uint32_t                 t_vertex_count,
+    core::renderer::Image&&        t_heightmap,
+    vk::UniqueImageView&&          t_heightmap_view,
+    vk::UniqueSampler&&            t_heightmap_sampler
 ) noexcept
     : m_vertex_buffer{ std::move(t_vertex_buffer) },
+      m_vertex_uniform{ std::move(t_vertex_uniform) },
       m_vertex_count{ t_vertex_count },
       m_heightmap{ std::move(t_heightmap) },
       m_heightmap_view{ std::move(t_heightmap_view) },
       m_heightmap_sampler{ std::move(t_heightmap_sampler) }
-{}
+{
+    m_vertex_uniform.set(t_device.getBufferAddress(vk::BufferDeviceAddressInfo{
+        .buffer = m_vertex_buffer.get(),
+    }));
+}

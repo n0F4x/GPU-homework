@@ -24,7 +24,12 @@ struct MeshRenderer {
     std::vector<vk::UniqueFence>                      in_flight_fences;
     uint32_t                                          frame_index{};
 
-    Terrain terrain;
+    core::renderer::MappedBuffer   camera_uniform;
+    Terrain                        terrain;
+    vk::UniqueDescriptorSetLayout  descriptor_set_layout;
+    vk::UniquePipelineLayout       pipeline_layout;
+    core::renderer::DescriptorPool descriptor_pool;
+    vk::UniqueDescriptorSet        descriptor_set;
 
 
     [[nodiscard]]

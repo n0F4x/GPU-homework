@@ -2,6 +2,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <core/renderer/base/descriptor_pool/Builder.hpp>
 #include <core/window/Window.hpp>
 
 #include "demo_init.hpp"
@@ -52,6 +53,136 @@ static auto
     t_device->resetCommandPool(transfer_command_pool.get());
 
     return packaged_terrain.get_future().get();
+}
+
+[[nodiscard]]
+static auto create_camera_buffer(const core::renderer::Allocator& t_allocator
+) -> core::renderer::MappedBuffer
+{
+    constexpr vk::BufferCreateInfo buffer_create_info = {
+        .size  = sizeof(core::graphics::Camera),
+        .usage = vk::BufferUsageFlagBits::eUniformBuffer
+    };
+
+    return t_allocator.allocate_mapped_buffer(buffer_create_info);
+}
+
+[[nodiscard]]
+static auto create_descriptor_set_layout(const vk::Device t_device
+) -> vk::UniqueDescriptorSetLayout
+{
+    constexpr static std::array bindings{
+        // Camera
+        vk::DescriptorSetLayoutBinding{
+                                       .binding         = 0,
+                                       .descriptorType  = vk::DescriptorType::eUniformBuffer,
+                                       .descriptorCount = 1,
+                                       .stageFlags      = vk::ShaderStageFlagBits::eVertex
+                                       | vk::ShaderStageFlagBits::eFragment },
+        // Vertex buffer
+        vk::DescriptorSetLayoutBinding{
+                                       .binding         = 1,
+                                       .descriptorType  = vk::DescriptorType::eUniformBuffer,
+                                       .descriptorCount = 1,
+                                       .stageFlags      = vk::ShaderStageFlagBits::eVertex
+                                       | vk::ShaderStageFlagBits::eFragment },
+        // Heightmap
+        vk::DescriptorSetLayoutBinding{
+                                       .binding         = 2,
+                                       .descriptorType  = vk::DescriptorType::eSampledImage,
+                                       .descriptorCount = 1,
+                                       .stageFlags      = vk::ShaderStageFlagBits::eVertex
+                                       | vk::ShaderStageFlagBits::eFragment },
+    };
+
+    constexpr static vk::DescriptorSetLayoutCreateInfo create_info{
+        .bindingCount = static_cast<uint32_t>(bindings.size()),
+        .pBindings    = bindings.data()
+    };
+
+    return t_device.createDescriptorSetLayoutUnique(create_info);
+}
+
+[[nodiscard]]
+static auto create_descriptor_set(
+    const vk::Device              t_device,
+    const vk::DescriptorSetLayout t_descriptor_set_layout,
+    const vk::DescriptorPool      t_descriptor_pool,
+    const vk::Buffer              t_camera_uniform,
+    const vk::Buffer              t_vertex_uniform,
+    const vk::ImageView           t_heightmap_image_view,
+    const vk::Sampler             t_heightmap_sampler
+) -> vk::UniqueDescriptorSet
+{
+    const vk::DescriptorSetAllocateInfo descriptor_set_allocate_info{
+        .descriptorPool     = t_descriptor_pool,
+        .descriptorSetCount = 1,
+        .pSetLayouts        = &t_descriptor_set_layout,
+    };
+    auto descriptor_sets{
+        t_device.allocateDescriptorSetsUnique(descriptor_set_allocate_info)
+    };
+
+    const vk::DescriptorBufferInfo camera_buffer_info{
+        .buffer = t_camera_uniform,
+        .range  = sizeof(core::graphics::Camera),
+    };
+    const vk::DescriptorBufferInfo vertex_buffer_info{
+        .buffer = t_vertex_uniform,
+        .range  = sizeof(vk::DeviceAddress),
+    };
+    const vk::DescriptorImageInfo heightmap_image_info{
+        .sampler     = t_heightmap_sampler,
+        .imageView   = t_heightmap_image_view,
+        .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+    };
+
+    std::array write_descriptor_sets{
+        vk::WriteDescriptorSet{
+                               .dstSet          = descriptor_sets.front().get(),
+                               .dstBinding      = 0,
+                               .descriptorCount = 1,
+                               .descriptorType  = vk::DescriptorType::eUniformBuffer,
+                               .pBufferInfo     = &camera_buffer_info,
+                               },
+        vk::WriteDescriptorSet{
+                               .dstSet          = descriptor_sets.front().get(),
+                               .dstBinding      = 1,
+                               .descriptorCount = 1,
+                               .descriptorType  = vk::DescriptorType::eUniformBuffer,
+                               .pBufferInfo     = &vertex_buffer_info,
+                               },
+        vk::WriteDescriptorSet{
+                               .dstSet          = descriptor_sets.front().get(),
+                               .dstBinding      = 2,
+                               .descriptorCount = 1,
+                               .descriptorType  = vk::DescriptorType::eSampledImage,
+                               .pImageInfo      = &heightmap_image_info,
+                               },
+    };
+
+    t_device.updateDescriptorSets(
+        static_cast<uint32_t>(write_descriptor_sets.size()),
+        write_descriptor_sets.data(),
+        0,
+        nullptr
+    );
+
+    return std::move(descriptor_sets.front());
+}
+
+[[nodiscard]]
+static auto create_pipeline_layout(
+    const vk::Device                               t_device,
+    const std::span<const vk::DescriptorSetLayout> t_layouts
+) -> vk::UniquePipelineLayout
+{
+    const vk::PipelineLayoutCreateInfo pipeline_layout_create_info{
+        .setLayoutCount = static_cast<uint32_t>(t_layouts.size()),
+        .pSetLayouts    = t_layouts.data(),
+    };
+
+    return t_device.createPipelineLayoutUnique(pipeline_layout_create_info);
 }
 
 auto MeshRenderer::create_dependency_provider()
@@ -136,7 +267,48 @@ auto MeshRenderer::create(Store& t_store) -> std::optional<MeshRenderer>
         return std::nullopt;
     }
 
+    auto camera_uniform{ create_camera_buffer(allocator) };
+
     auto terrain{ load_terrain(device, allocator) };
+
+    vk::UniqueDescriptorSetLayout descriptor_set_layout{
+        create_descriptor_set_layout(device.get())
+    };
+
+    auto pipeline_layout{
+        create_pipeline_layout(device.get(), std::array{ descriptor_set_layout.get() })
+    };
+
+    core::renderer::DescriptorPool descriptor_pool{
+        core::renderer::DescriptorPool::create()
+            .request_descriptor_sets(1)
+            .request_descriptors(std::array{
+                                            // Camera
+                vk::DescriptorPoolSize{
+                    .type            = vk::DescriptorType::eUniformBuffer,
+                    .descriptorCount = 1,
+                },   // Vertices
+                vk::DescriptorPoolSize{
+                    .type            = vk::DescriptorType::eUniformBuffer,
+                    .descriptorCount = 1,
+                },   // Heightmap
+                vk::DescriptorPoolSize{
+                    .type            = vk::DescriptorType::eSampledImage,
+                    .descriptorCount = 2,
+                }, }
+            )
+            .build(device.get())
+    };
+
+    vk::UniqueDescriptorSet descriptor_set{ create_descriptor_set(
+        device.get(),
+        descriptor_set_layout.get(),
+        descriptor_pool.get(),
+        camera_uniform.get(),
+        terrain.vertex_uniform().get(),
+        terrain.heightmap_image_view().get(),
+        terrain.heightmap_sampler().get()
+    ) };
 
     return MeshRenderer{
         .device                     = device,
@@ -151,7 +323,12 @@ auto MeshRenderer::create(Store& t_store) -> std::optional<MeshRenderer>
         .image_acquired_semaphores  = std::move(image_acquired_semaphores),
         .render_finished_semaphores = std::move(render_finished_semaphores),
         .in_flight_fences           = std::move(in_flight_fences),
-        .terrain                    = std::move(terrain)
+        .camera_uniform             = std::move(camera_uniform),
+        .terrain                    = std::move(terrain),
+        .descriptor_set_layout      = std::move(descriptor_set_layout),
+        .pipeline_layout            = std::move(pipeline_layout),
+        .descriptor_pool            = std::move(descriptor_pool),
+        .descriptor_set             = std::move(descriptor_set),
     };
 }
 

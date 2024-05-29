@@ -30,6 +30,7 @@ auto DependencyProvider::require_device_settings(
     t_physical_device_selector.add_required_extension(VK_EXT_MESH_SHADER_EXTENSION_NAME);
     t_physical_device_selector.add_required_extension_features(
         vk::PhysicalDeviceMeshShaderFeaturesEXT{
+            .taskShader = vk::True,
             .meshShader = vk::True,
         }
     );
