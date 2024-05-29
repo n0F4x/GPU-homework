@@ -29,6 +29,8 @@ public:
     [[nodiscard]]
     auto heightmap_sampler() const noexcept -> const vk::UniqueSampler&;
 
+    auto draw(vk::CommandBuffer graphics_command_buffer) const -> void;
+
 private:
     core::renderer::Buffer       m_vertex_buffer;
     core::renderer::MappedBuffer m_vertex_uniform;

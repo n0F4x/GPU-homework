@@ -522,6 +522,15 @@ auto MeshRenderer::record_command_buffer(
         10000.f
     );
 
+    command_buffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        pipeline_layout.get(),
+        0,
+        std::array{ descriptor_set.get() },
+        nullptr
+    );
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
+    terrain.draw(command_buffer);
 
     command_buffer.endRenderPass();
     command_buffer.end();

@@ -380,6 +380,14 @@ auto Terrain::heightmap_sampler() const noexcept -> const vk::UniqueSampler&
     return m_heightmap_sampler;
 }
 
+auto Terrain::draw(vk::CommandBuffer graphics_command_buffer) const -> void
+{
+    uint32_t group_count_x{ 1 };
+    uint32_t group_count_y{ 1 };
+    uint32_t group_count_z{ 1 };
+    graphics_command_buffer.drawMeshTasksEXT(group_count_x, group_count_y, group_count_z);
+}
+
 Terrain::Terrain(
     const vk::Device               t_device,
     core::renderer::Buffer&&       t_vertex_buffer,
