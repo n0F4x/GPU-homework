@@ -77,21 +77,21 @@ static auto create_descriptor_set_layout(const vk::Device t_device
                                        .binding         = 0,
                                        .descriptorType  = vk::DescriptorType::eUniformBuffer,
                                        .descriptorCount = 1,
-                                       .stageFlags      = vk::ShaderStageFlagBits::eVertex
+                                       .stageFlags      = vk::ShaderStageFlagBits::eMeshEXT
                                        | vk::ShaderStageFlagBits::eFragment },
         // Vertex buffer
         vk::DescriptorSetLayoutBinding{
                                        .binding         = 1,
                                        .descriptorType  = vk::DescriptorType::eUniformBuffer,
                                        .descriptorCount = 1,
-                                       .stageFlags      = vk::ShaderStageFlagBits::eVertex
+                                       .stageFlags      = vk::ShaderStageFlagBits::eMeshEXT
                                        | vk::ShaderStageFlagBits::eFragment },
         // Heightmap
         vk::DescriptorSetLayoutBinding{
                                        .binding         = 2,
                                        .descriptorType  = vk::DescriptorType::eSampledImage,
                                        .descriptorCount = 1,
-                                       .stageFlags      = vk::ShaderStageFlagBits::eVertex
+                                       .stageFlags      = vk::ShaderStageFlagBits::eMeshEXT
                                        | vk::ShaderStageFlagBits::eFragment },
     };
 
@@ -183,6 +183,93 @@ static auto create_pipeline_layout(
     };
 
     return t_device.createPipelineLayoutUnique(pipeline_layout_create_info);
+}
+
+[[nodiscard]]
+static auto create_pipeline(
+    const vk::Device         t_device,
+    const vk::PipelineLayout t_layout,
+    const vk::RenderPass     t_render_pass
+) -> vk::UniquePipeline
+{
+    auto mesh_shader_module{
+        core::renderer::ShaderModule::create(t_device, "shaders/tesselator.mesh.spv")
+    };
+    if (!mesh_shader_module.has_value()) {
+        return {};
+    }
+    auto fragment_shader_module{
+        core::renderer::ShaderModule::create(t_device, "shaders/terrain.frag.spv")
+    };
+    if (!fragment_shader_module.has_value()) {
+        return {};
+    }
+    std::array mesh_stages{
+        vk::PipelineShaderStageCreateInfo{.stage  = vk::ShaderStageFlagBits::eMeshEXT,
+                                          .module = mesh_shader_module.value().module(),
+                                          .pName  = "main" },
+        vk::PipelineShaderStageCreateInfo{
+                                          .stage  = vk::ShaderStageFlagBits::eFragment,
+                                          .module = fragment_shader_module.value().module(),
+                                          .pName  = "main" }
+    };
+
+    constexpr vk::PipelineViewportStateCreateInfo viewport_state_create_info{
+        .viewportCount = 1, .scissorCount = 1
+    };
+
+    const vk::PipelineRasterizationStateCreateInfo rasterization_state_create_info{
+        .polygonMode = vk::PolygonMode::eLine,
+        .cullMode    = vk::CullModeFlagBits::eNone,
+        .frontFace   = vk::FrontFace::eCounterClockwise,
+        .lineWidth   = 1.f
+    };
+
+    constexpr vk::PipelineMultisampleStateCreateInfo multisample_state_create_info{
+        .rasterizationSamples = vk::SampleCountFlagBits::e1,
+    };
+
+    constexpr vk::PipelineDepthStencilStateCreateInfo depth_stencil_state_create_info{
+        .depthTestEnable       = vk::True,
+        .depthWriteEnable      = vk::True,
+        .depthCompareOp        = vk::CompareOp::eLess,
+        .depthBoundsTestEnable = vk::False,
+        .stencilTestEnable     = vk::False,
+    };
+
+    vk::PipelineColorBlendAttachmentState color_blend_attachment_state{
+        .blendEnable    = vk::False,
+        .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG
+                        | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
+    };
+    vk::PipelineColorBlendStateCreateInfo color_blend_state_create_info{
+        .attachmentCount = 1,
+        .pAttachments    = &color_blend_attachment_state,
+    };
+
+    constexpr static std::array dynamic_states{ vk::DynamicState::eViewport,
+                                                vk::DynamicState::eScissor };
+    constexpr vk::PipelineDynamicStateCreateInfo dynamic_state_create_info{
+        .dynamicStateCount = static_cast<uint32_t>(dynamic_states.size()),
+        .pDynamicStates    = dynamic_states.data()
+    };
+
+    const vk::GraphicsPipelineCreateInfo create_info{
+        .stageCount          = static_cast<uint32_t>(mesh_stages.size()),
+        .pStages             = mesh_stages.data(),
+        .pVertexInputState   = nullptr,
+        .pInputAssemblyState = nullptr,
+        .pViewportState      = &viewport_state_create_info,
+        .pRasterizationState = &rasterization_state_create_info,
+        .pMultisampleState   = &multisample_state_create_info,
+        .pDepthStencilState  = &depth_stencil_state_create_info,
+        .pColorBlendState    = &color_blend_state_create_info,
+        .pDynamicState       = &dynamic_state_create_info,
+        .layout              = t_layout,
+        .renderPass          = t_render_pass,
+    };
+
+    return t_device.createGraphicsPipelineUnique(nullptr, create_info).value;
 }
 
 auto MeshRenderer::create_dependency_provider()
@@ -300,6 +387,13 @@ auto MeshRenderer::create(Store& t_store) -> std::optional<MeshRenderer>
             .build(device.get())
     };
 
+    auto pipeline{
+        create_pipeline(device.get(), pipeline_layout.get(), render_pass.get())
+    };
+    if (!pipeline) {
+        return std::nullopt;
+    }
+
     vk::UniqueDescriptorSet descriptor_set{ create_descriptor_set(
         device.get(),
         descriptor_set_layout.get(),
@@ -327,6 +421,7 @@ auto MeshRenderer::create(Store& t_store) -> std::optional<MeshRenderer>
         .terrain                    = std::move(terrain),
         .descriptor_set_layout      = std::move(descriptor_set_layout),
         .pipeline_layout            = std::move(pipeline_layout),
+        .pipeline                   = std::move(pipeline),
         .descriptor_pool            = std::move(descriptor_pool),
         .descriptor_set             = std::move(descriptor_set),
     };

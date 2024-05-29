@@ -88,11 +88,11 @@ auto GraphicsPipelineBuilder::build(const vk::Device t_device) const -> vk::Uniq
     };
 
     constexpr vk::PipelineDepthStencilStateCreateInfo depth_stencil_state_create_info{
-        .depthTestEnable       = true,
-        .depthWriteEnable      = true,
+        .depthTestEnable       = vk::True,
+        .depthWriteEnable      = vk::True,
         .depthCompareOp        = vk::CompareOp::eLess,
-        .depthBoundsTestEnable = false,
-        .stencilTestEnable     = false,
+        .depthBoundsTestEnable = vk::False,
+        .stencilTestEnable     = vk::False,
     };
 
     vk::PipelineColorBlendAttachmentState color_blend_attachment_state{

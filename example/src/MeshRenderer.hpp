@@ -28,6 +28,7 @@ struct MeshRenderer {
     Terrain                        terrain;
     vk::UniqueDescriptorSetLayout  descriptor_set_layout;
     vk::UniquePipelineLayout       pipeline_layout;
+    vk::UniquePipeline             pipeline;
     core::renderer::DescriptorPool descriptor_pool;
     vk::UniqueDescriptorSet        descriptor_set;
 

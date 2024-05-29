@@ -34,6 +34,9 @@ auto DependencyProvider::require_device_settings(
             .meshShader = vk::True,
         }
     );
+    t_physical_device_selector.set_required_features(vk::PhysicalDeviceFeatures{
+        .fillModeNonSolid = vk::True,
+    });
 }
 
 auto DependencyProvider::enable_optional_device_settings(vkb::PhysicalDevice&) -> void {}
