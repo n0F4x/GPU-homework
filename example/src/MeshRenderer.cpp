@@ -82,15 +82,15 @@ static auto create_descriptor_set_layout(const vk::Device t_device
                                        .binding         = 0,
                                        .descriptorType  = vk::DescriptorType::eUniformBuffer,
                                        .descriptorCount = 1,
-                                       .stageFlags      = vk::ShaderStageFlagBits::eMeshEXT
-                                       | vk::ShaderStageFlagBits::eFragment },
+                                       .stageFlags      = vk::ShaderStageFlagBits::eTaskEXT
+                                       | vk::ShaderStageFlagBits::eMeshEXT },
         // Vertex buffer
         vk::DescriptorSetLayoutBinding{
                                        .binding         = 1,
                                        .descriptorType  = vk::DescriptorType::eUniformBuffer,
                                        .descriptorCount = 1,
-                                       .stageFlags      = vk::ShaderStageFlagBits::eMeshEXT
-                                       | vk::ShaderStageFlagBits::eFragment },
+                                       .stageFlags      = vk::ShaderStageFlagBits::eTaskEXT
+                                       | vk::ShaderStageFlagBits::eMeshEXT },
         // Heightmap
         vk::DescriptorSetLayoutBinding{
                                        .binding         = 2,

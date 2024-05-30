@@ -34,13 +34,44 @@ layout (set = 0, binding = 1) uniform Vertices {
 taskPayloadSharedEXT SharedData sharedData;
 
 
+bool insideFrustum(vec3 position) {
+    return !(
+    position.x < -1.0 || position.x > 1.0 ||
+    position.y < -1.0 || position.y > 1.0 ||
+    position.z < -1.0 || position.z > 1.0
+    );
+}
+
+
 void main() {
     if (gl_WorkGroupID.x == gl_NumWorkGroups.x - 1 || gl_WorkGroupID.y == gl_NumWorkGroups.y - 1) {
         return;
     }
 
-    sharedData.vertexIndex = gl_WorkGroupID.x * gl_NumWorkGroups.x + gl_WorkGroupID.y;
-    sharedData.vertexIndexX = (gl_WorkGroupID.x + 1) * gl_NumWorkGroups.x + gl_WorkGroupID.y;
-    sharedData.vertexIndexY = gl_WorkGroupID.x * gl_NumWorkGroups.x + gl_WorkGroupID.y + 1;
+    sharedData.vertexIndex = gl_WorkGroupID.y * gl_NumWorkGroups.y + gl_WorkGroupID.x;
+    sharedData.vertexIndexX = (gl_WorkGroupID.y + 1) * gl_NumWorkGroups.y + gl_WorkGroupID.x;
+    sharedData.vertexIndexY = gl_WorkGroupID.y * gl_NumWorkGroups.y + gl_WorkGroupID.x + 1;
+
+    // Frustum cull
+    {
+        vec2 localPosition = vertexBuffer.vertices[sharedData.vertexIndex].position;
+        vec3 worldPosition = vec3(localPosition.x, 0, localPosition.y);
+        vec3 position = vec4(camera.projection * camera.view * vec4(worldPosition, 1)).xyz;
+
+        vec2 localPositionX = vertexBuffer.vertices[sharedData.vertexIndexX].position;
+        vec3 worldPositionX = vec3(localPositionX.x, 0, localPositionX.y);
+        vec3 positionX = vec4(camera.projection * camera.view * vec4(worldPositionX, 1)).xyz;
+
+        vec2 localPositionY = vertexBuffer.vertices[sharedData.vertexIndexY].position;
+        vec3 worldPositionY = vec3(localPositionY.x, 0, localPositionY.y);
+        vec3 positionY = vec4(camera.projection * camera.view * vec4(worldPositionY, 1)).xyz;
+
+        vec3 positionXY = positionX + positionY - position;
+
+        if (!insideFrustum(position) && !insideFrustum(positionX) && !insideFrustum(positionY) && !insideFrustum(positionXY)) {
+            return;
+        }
+    }
+
     EmitMeshTasksEXT(1, 1, 1);
 }
