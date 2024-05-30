@@ -530,7 +530,7 @@ auto MeshRenderer::record_command_buffer(
     command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
     t_camera.set_perspective_projection(
-        50.f,
+        90.f,
         static_cast<float>(extent.width) / static_cast<float>(extent.height),
         0.1f,
         10000.f

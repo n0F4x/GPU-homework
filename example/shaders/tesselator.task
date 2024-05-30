@@ -43,35 +43,46 @@ bool insideFrustum(vec3 position) {
 }
 
 
+uint tesselationLevel(vec3 center) {
+    //    return clamp(uint(1.0 / distance(center, camera.position.xyz)), 0, 5);
+    return 0;
+}
+
+
 void main() {
     if (gl_WorkGroupID.x == gl_NumWorkGroups.x - 1 || gl_WorkGroupID.y == gl_NumWorkGroups.y - 1) {
         return;
     }
 
-    sharedData.vertexIndex = gl_WorkGroupID.y * gl_NumWorkGroups.y + gl_WorkGroupID.x;
-    sharedData.vertexIndexX = (gl_WorkGroupID.y + 1) * gl_NumWorkGroups.y + gl_WorkGroupID.x;
-    sharedData.vertexIndexY = gl_WorkGroupID.y * gl_NumWorkGroups.y + gl_WorkGroupID.x + 1;
+    sharedData.vertexIndices[0] = gl_WorkGroupID.y * gl_NumWorkGroups.y + gl_WorkGroupID.x;
+    sharedData.vertexIndices[1] = (gl_WorkGroupID.y + 1) * gl_NumWorkGroups.y + gl_WorkGroupID.x;
+    sharedData.vertexIndices[2] = gl_WorkGroupID.y * gl_NumWorkGroups.y + gl_WorkGroupID.x + 1;
+    sharedData.vertexIndices[3] = (gl_WorkGroupID.y + 1) * gl_NumWorkGroups.y + gl_WorkGroupID.x + 1;
+
+    vec2 localPosition = vertexBuffer.vertices[sharedData.vertexIndices[0]].position;
+    vec3 worldPosition = vec3(localPosition.x, 0, localPosition.y);
+    vec3 position = vec4(camera.projection * camera.view * vec4(worldPosition, 1)).xyz;
+
+    vec2 localPositionX = vertexBuffer.vertices[sharedData.vertexIndices[1]].position;
+    vec3 worldPositionX = vec3(localPositionX.x, 0, localPositionX.y);
+    vec3 positionX = vec4(camera.projection * camera.view * vec4(worldPositionX, 1)).xyz;
+
+    vec2 localPositionY = vertexBuffer.vertices[sharedData.vertexIndices[2]].position;
+    vec3 worldPositionY = vec3(localPositionY.x, 0, localPositionY.y);
+    vec3 positionY = vec4(camera.projection * camera.view * vec4(worldPositionY, 1)).xyz;
+
+    vec3 worldPositionXY = worldPositionX + worldPositionY - worldPosition;
+    vec3 positionXY = positionX + positionY - position;
 
     // Frustum cull
-    {
-        vec2 localPosition = vertexBuffer.vertices[sharedData.vertexIndex].position;
-        vec3 worldPosition = vec3(localPosition.x, 0, localPosition.y);
-        vec3 position = vec4(camera.projection * camera.view * vec4(worldPosition, 1)).xyz;
-
-        vec2 localPositionX = vertexBuffer.vertices[sharedData.vertexIndexX].position;
-        vec3 worldPositionX = vec3(localPositionX.x, 0, localPositionX.y);
-        vec3 positionX = vec4(camera.projection * camera.view * vec4(worldPositionX, 1)).xyz;
-
-        vec2 localPositionY = vertexBuffer.vertices[sharedData.vertexIndexY].position;
-        vec3 worldPositionY = vec3(localPositionY.x, 0, localPositionY.y);
-        vec3 positionY = vec4(camera.projection * camera.view * vec4(worldPositionY, 1)).xyz;
-
-        vec3 positionXY = positionX + positionY - position;
-
-        if (!insideFrustum(position) && !insideFrustum(positionX) && !insideFrustum(positionY) && !insideFrustum(positionXY)) {
-            return;
-        }
+    if (!insideFrustum(position) && !insideFrustum(positionX) && !insideFrustum(positionY) && !insideFrustum(positionXY)) {
+        return;
     }
 
-    EmitMeshTasksEXT(1, 1, 1);
+    vec3 center = worldPosition + (worldPositionXY - worldPosition) / 2.0;
+    sharedData.tesselationLevel = tesselationLevel(center + 1);
+    sharedData.offsetX = (worldPositionX - worldPosition);
+    sharedData.offsetY = (worldPositionY - worldPosition);
+
+    EmitMeshTasksEXT(1 + sharedData.tesselationLevel, 1 + sharedData.tesselationLevel, 1);
 }
