@@ -12,6 +12,12 @@ using namespace core;
 
 constexpr static uint32_t g_frame_count{ 1 };
 
+struct ShaderCamera {
+    glm::vec4 position;
+    glm::mat4 view;
+    glm::mat4 projection;
+};
+
 [[nodiscard]]
 static auto
     load_terrain(const renderer::Device& t_device, const renderer::Allocator& t_allocator)
@@ -60,8 +66,7 @@ static auto create_camera_buffer(const core::renderer::Allocator& t_allocator
 ) -> core::renderer::MappedBuffer
 {
     constexpr vk::BufferCreateInfo buffer_create_info = {
-        .size  = sizeof(core::graphics::Camera),
-        .usage = vk::BufferUsageFlagBits::eUniformBuffer
+        .size = sizeof(ShaderCamera), .usage = vk::BufferUsageFlagBits::eUniformBuffer
     };
 
     return t_allocator.allocate_mapped_buffer(buffer_create_info);
@@ -125,7 +130,7 @@ static auto create_descriptor_set(
 
     const vk::DescriptorBufferInfo camera_buffer_info{
         .buffer = t_camera_uniform,
-        .range  = sizeof(core::graphics::Camera),
+        .range  = sizeof(ShaderCamera),
     };
     const vk::DescriptorBufferInfo vertex_buffer_info{
         .buffer = t_vertex_uniform,
@@ -192,6 +197,12 @@ static auto create_pipeline(
     const vk::RenderPass     t_render_pass
 ) -> vk::UniquePipeline
 {
+    auto task_shader_module{
+        core::renderer::ShaderModule::create(t_device, "shaders/tesselator.task.spv")
+    };
+    if (!task_shader_module.has_value()) {
+        return {};
+    }
     auto mesh_shader_module{
         core::renderer::ShaderModule::create(t_device, "shaders/tesselator.mesh.spv")
     };
@@ -205,7 +216,10 @@ static auto create_pipeline(
         return {};
     }
     std::array mesh_stages{
-        vk::PipelineShaderStageCreateInfo{.stage  = vk::ShaderStageFlagBits::eMeshEXT,
+        vk::PipelineShaderStageCreateInfo{.stage  = vk::ShaderStageFlagBits::eTaskEXT,
+                                          .module = task_shader_module.value().module(),
+                                          .pName  = "main" },
+        vk::PipelineShaderStageCreateInfo{ .stage  = vk::ShaderStageFlagBits::eMeshEXT,
                                           .module = mesh_shader_module.value().module(),
                                           .pName  = "main" },
         vk::PipelineShaderStageCreateInfo{
@@ -490,7 +504,7 @@ auto MeshRenderer::record_command_buffer(
 
     const std::array clear_values{
         vk::ClearValue{
-                       .color = { std::array{ 0.01f, 0.01f, 0.01f, 0.01f } },
+                       .color = { std::array{ 0.01f, 0.01f, 0.1f, 0.01f } },
                        },
         vk::ClearValue{
                        .depthStencil = { 1.f, 0 },
@@ -521,6 +535,11 @@ auto MeshRenderer::record_command_buffer(
         0.1f,
         10000.f
     );
+    camera_uniform.set(ShaderCamera{
+        .position   = glm::vec4{ t_camera.position(), 1 },
+        .view       = t_camera.view(),
+        .projection = t_camera.projection()
+    });
 
     command_buffer.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,

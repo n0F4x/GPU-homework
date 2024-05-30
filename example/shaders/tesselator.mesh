@@ -1,35 +1,71 @@
 #version 450
+
 #extension GL_EXT_mesh_shader: require
 #extension GL_EXT_buffer_reference: require
+#extension GL_GOOGLE_include_directive: require
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+#include "shared.glsl"
+
+
+layout (local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
+
+taskPayloadSharedEXT SharedData sharedData;
+
+
+struct Camera {
+    vec4 position;
+    mat4 view;
+    mat4 projection;
+};
+layout (set = 0, binding = 0) uniform Scene {
+    Camera camera;
+};
 
 struct Vertex {
     vec2 position;
     vec2 texCoord;
 };
-
 layout (std430, buffer_reference, buffer_reference_align = 16) readonly buffer VertexBuffer {
     Vertex vertices[];
 };
-
 layout (set = 0, binding = 1) uniform Vertices {
     VertexBuffer vertexBuffer;
 };
 
-layout (lines, max_vertices = 2, max_primitives = 1) out;
+layout (set = 0, binding = 2) uniform sampler2D heightmap;
+
+
+layout (triangles, max_vertices = 4, max_primitives = 2) out;
 
 layout (location = 0) out vec3 out_colors[];
 
+
 void main() {
-    uint vertexCount = 2;
-    uint lineCount = 1;
-    SetMeshOutputsEXT(vertexCount, lineCount);
-    gl_PrimitiveLineIndicesEXT[0] = uvec2(0, 1);
+    if (gl_LocalInvocationIndex == 0) {
+        uint vertexCount = 4;
+        uint triangleCount = 2;
+        SetMeshOutputsEXT(vertexCount, triangleCount);
+        gl_PrimitiveTriangleIndicesEXT[0] = uvec3(0, 1, 3);
+        gl_PrimitiveTriangleIndicesEXT[1] = uvec3(0, 2, 3);
 
-    gl_MeshVerticesEXT[0].gl_Position = vec4(0.5, -0.5, 0, 1);
-    gl_MeshVerticesEXT[1].gl_Position = vec4(0.5, 0.5, 0, 1);
+        vec2 localPosition = vertexBuffer.vertices[sharedData.vertexIndex].position;
+        vec3 worldPosition = vec3(localPosition.x, 0, localPosition.y);
+        vec3 position = vec4(camera.projection * camera.view * vec4(worldPosition, 1)).xyz;
 
-    out_colors[0] = vec3(0, 1, 0);
-    out_colors[1] = vec3(0, 1, 0);
+
+        vec2 localPositionX = vertexBuffer.vertices[sharedData.vertexIndexX].position;
+        vec3 worldPositionX = vec3(localPositionX.x, 0, localPositionX.y);
+        vec3 positionX = vec4(camera.projection * camera.view * vec4(worldPositionX, 1)).xyz;
+
+        vec2 localPositionY = vertexBuffer.vertices[sharedData.vertexIndexY].position;
+        vec3 worldPositionY = vec3(localPositionY.x, 0, localPositionY.y);
+        vec3 positionY = vec4(camera.projection * camera.view * vec4(worldPositionY, 1)).xyz;
+
+        gl_MeshVerticesEXT[0].gl_Position = vec4(position, 1);
+        gl_MeshVerticesEXT[1].gl_Position = vec4(positionX, 1);
+        gl_MeshVerticesEXT[2].gl_Position = vec4(positionY, 1);
+        gl_MeshVerticesEXT[3].gl_Position = vec4(positionX + positionY - position, 1);
+    }
+
+    out_colors[gl_LocalInvocationIndex] = vec3(0, 1, 0);
 }

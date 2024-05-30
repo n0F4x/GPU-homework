@@ -1,0 +1,46 @@
+#version 450
+
+#extension GL_EXT_mesh_shader: require
+#extension GL_EXT_buffer_reference: require
+#extension GL_GOOGLE_include_directive: require
+
+#include "shared.glsl"
+
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+
+struct Camera {
+    vec4 position;
+    mat4 view;
+    mat4 projection;
+};
+layout (set = 0, binding = 0) uniform Scene {
+    Camera camera;
+};
+
+struct Vertex {
+    vec2 position;
+    vec2 texCoord;
+};
+layout (std430, buffer_reference, buffer_reference_align = 16) readonly buffer VertexBuffer {
+    Vertex vertices[];
+};
+layout (set = 0, binding = 1) uniform Vertices {
+    VertexBuffer vertexBuffer;
+};
+
+
+taskPayloadSharedEXT SharedData sharedData;
+
+
+void main() {
+    if (gl_WorkGroupID.x == gl_NumWorkGroups.x - 1 || gl_WorkGroupID.y == gl_NumWorkGroups.y - 1) {
+        return;
+    }
+
+    sharedData.vertexIndex = gl_WorkGroupID.x * gl_NumWorkGroups.x + gl_WorkGroupID.y;
+    sharedData.vertexIndexX = (gl_WorkGroupID.x + 1) * gl_NumWorkGroups.x + gl_WorkGroupID.y;
+    sharedData.vertexIndexY = gl_WorkGroupID.x * gl_NumWorkGroups.x + gl_WorkGroupID.y + 1;
+    EmitMeshTasksEXT(1, 1, 1);
+}

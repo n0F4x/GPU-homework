@@ -242,29 +242,19 @@ auto Terrain::create_loader(
 ) -> std::packaged_task<Terrain(vk::CommandBuffer)>
 {
     std::vector<Vertex> vertices;
-    size_t              quad_count{ 64 };
-    vertices.reserve(quad_count * 4);
-    for (size_t i{}; i < quad_count; i++) {
-        for (size_t j{}; j < quad_count; j++) {
+    glm::u32vec2        quad_count{ 64, 64 };
+    auto                vertex_count = static_cast<size_t>(quad_count.x)
+                      * static_cast<size_t>(quad_count.y);
+    vertices.reserve(vertex_count);
+    for (uint32_t i{}; i < quad_count.x; i++) {
+        for (uint32_t j{}; j < quad_count.y; j++) {
             auto x   = static_cast<float>(i);
             auto y   = static_cast<float>(j);
-            auto max = static_cast<float>(quad_count);
+            auto max = static_cast<float>(vertex_count);
 
             vertices.push_back(Vertex{
                 .position      = glm::vec2{       x,       y },
                 .texture_coord = glm::vec2{ x / max, y / max },
-            });
-            vertices.push_back(Vertex{
-                .position      = glm::vec2{       x,         y + 1.f },
-                .texture_coord = glm::vec2{ x / max, (y + 1.f) / max },
-            });
-            vertices.push_back(Vertex{
-                .position      = glm::vec2{         x + 1.f,       y },
-                .texture_coord = glm::vec2{ (x + 1.f) / max, y / max },
-            });
-            vertices.push_back(Vertex{
-                .position      = glm::vec2{         x + 1.f,         y + 1.f },
-                .texture_coord = glm::vec2{ (x + 1.f) / max, (y + 1.f) / max },
             });
         }
     }
@@ -317,7 +307,7 @@ auto Terrain::create_loader(
          vertex_staging_buffer    = auto{ std::move(vertex_staging_buffer) },
          vertex_buffer            = auto{ std::move(vertex_buffer) },
          vertex_uniform           = auto{ std::move(vertex_uniform) },
-         vertex_count             = static_cast<uint32_t>(vertices.size()),
+         quad_count               = quad_count,
          heightmap_extent         = vk::Extent3D{ .width  = image->width(),
                                                   .height = image->height(),
                                                   .depth  = 1 },
@@ -354,7 +344,7 @@ auto Terrain::create_loader(
             return Terrain{ device,
                             std::move(vertex_buffer),
                             std::move(vertex_uniform),
-                            vertex_count,
+                            quad_count,
                             std::move(heightmap),
                             std::move(heightmap_view),
                             std::move(heightmap_sampler) };
@@ -382,8 +372,8 @@ auto Terrain::heightmap_sampler() const noexcept -> const vk::UniqueSampler&
 
 auto Terrain::draw(vk::CommandBuffer graphics_command_buffer) const -> void
 {
-    uint32_t group_count_x{ 1 };
-    uint32_t group_count_y{ 1 };
+    uint32_t group_count_x{ m_quad_count.x };
+    uint32_t group_count_y{ m_quad_count.y };
     uint32_t group_count_z{ 1 };
     graphics_command_buffer.drawMeshTasksEXT(group_count_x, group_count_y, group_count_z);
 }
@@ -392,14 +382,14 @@ Terrain::Terrain(
     const vk::Device               t_device,
     core::renderer::Buffer&&       t_vertex_buffer,
     core::renderer::MappedBuffer&& t_vertex_uniform,
-    const uint32_t                 t_vertex_count,
+    const glm::u32vec2             t_quad_count,
     core::renderer::Image&&        t_heightmap,
     vk::UniqueImageView&&          t_heightmap_view,
     vk::UniqueSampler&&            t_heightmap_sampler
 ) noexcept
     : m_vertex_buffer{ std::move(t_vertex_buffer) },
       m_vertex_uniform{ std::move(t_vertex_uniform) },
-      m_vertex_count{ t_vertex_count },
+      m_quad_count{ t_quad_count },
       m_heightmap{ std::move(t_heightmap) },
       m_heightmap_view{ std::move(t_heightmap_view) },
       m_heightmap_sampler{ std::move(t_heightmap_sampler) }

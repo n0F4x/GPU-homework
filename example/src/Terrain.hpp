@@ -34,7 +34,7 @@ public:
 private:
     core::renderer::Buffer       m_vertex_buffer;
     core::renderer::MappedBuffer m_vertex_uniform;
-    uint32_t                     m_vertex_count{};
+    glm::u32vec2                 m_quad_count;
     core::renderer::Image        m_heightmap;
     vk::UniqueImageView          m_heightmap_view;
     vk::UniqueSampler            m_heightmap_sampler;
@@ -43,7 +43,7 @@ private:
         vk::Device                     device,
         core::renderer::Buffer&&       vertex_buffer,
         core::renderer::MappedBuffer&& vertex_uniform,
-        uint32_t                       vertex_count,
+        glm::u32vec2                   quad_count,
         core::renderer::Image&&        heightmap,
         vk::UniqueImageView&&          heightmap_view,
         vk::UniqueSampler&&            heightmap_sampler
